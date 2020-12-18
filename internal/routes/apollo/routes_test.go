@@ -25,13 +25,103 @@ var stubConfigs = []watcher.ConfigMap{
 						"mysql": "mysql://root@localhost/mysql",
 					},
 				},
+				"ns2.properties": {
+					ReleaseKey: "abc",
+					Configurations: map[string]string{
+						"timezone": "Asia/Kolkata",
+					},
+				},
 			},
 		},
 	},
 }
 
-func TestQueryService(t *testing.T) {
+func TestGetNamespace(t *testing.T) {
+	// mock fs
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("/dev", 0755)
+	data, err := yaml.Marshal(stubConfigs[0])
+	require.Nil(t, err)
+	require.Nil(t, afero.WriteFile(appFS, "/dev/null", data, 0644))
 
+	// setup apollo
+	filepaths := []string{"/dev/null"}
+	a, err := New(context.Background(), Config{ConfigPath: filepaths})
+	require.EqualError(t, err, "invalid config file")
+	for _, w := range a.w {
+		w.MockFS(appFS)
+		require.Nil(t, w.ReloadConfig())
+	}
+
+	t.Run("get ns", func(t *testing.T) {
+		ns, err := a.getNamespace("app", "cluster", "ns")
+		require.Nil(t, err)
+		require.Equal(
+			t,
+			stubConfigs[0]["app"]["cluster"]["ns"],
+			ns,
+			ns,
+		)
+	})
+
+	t.Run("get ns.properties", func(t *testing.T) {
+		ns, err := a.getNamespace("app", "cluster", "ns")
+		require.Nil(t, err)
+		require.Equal(
+			t,
+			stubConfigs[0]["app"]["cluster"]["ns"],
+			ns,
+			ns,
+		)
+	})
+
+	t.Run("get ns2", func(t *testing.T) {
+		ns, err := a.getNamespace("app", "cluster", "ns2")
+		require.Nil(t, err)
+		require.Equal(
+			t,
+			stubConfigs[0]["app"]["cluster"]["ns2.properties"],
+			ns,
+			ns,
+		)
+	})
+}
+
+func TestQueryService(t *testing.T) {
+	// mock fs
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("/dev", 0755)
+	data, err := yaml.Marshal(stubConfigs[0])
+	require.Nil(t, err)
+	require.Nil(t, afero.WriteFile(appFS, "/dev/null", data, 0644))
+
+	// setup apollo
+	filepaths := []string{"/dev/null"}
+	a, err := New(context.Background(), Config{ConfigPath: filepaths, Port: 8070})
+	require.EqualError(t, err, "invalid config file")
+	for _, w := range a.w {
+		w.MockFS(appFS)
+		require.Nil(t, w.ReloadConfig())
+	}
+
+	t.Run("status 200", func(t *testing.T) {
+		// call the handler
+		req := httptest.NewRequest("GET", "/services/config?appId=app", nil)
+		w := httptest.NewRecorder()
+		ps := httprouter.Params{}
+		a.queryService(w, req, ps)
+
+		rsp := w.Result()
+		require.Equal(t, 200, rsp.StatusCode)
+		b, err := ioutil.ReadAll(rsp.Body)
+		require.Nil(t, err)
+		require.JSONEq(
+			t,
+			`[{"appName":"APOLLO-CONFIGSERVICE","instanceId":"localhost:apollo-configservice:8070","homepageUrl":"http://localhost:8070/"}]`,
+			string(b),
+			string(b),
+		)
+	})
 }
 
 func TestQueryConfig(t *testing.T) {
