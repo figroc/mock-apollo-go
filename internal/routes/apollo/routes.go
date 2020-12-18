@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/lalamove/mock-apollo-go/pkg/flagarray"
 	"github.com/lalamove/mock-apollo-go/pkg/longpoll"
 	"github.com/lalamove/mock-apollo-go/pkg/watcher"
 	"github.com/lalamove/nui/nlogger"
@@ -20,7 +19,7 @@ import (
 // Config is an object that stores the package config
 type Config struct {
 	Log         nlogger.Provider
-	ConfigPath  flagarray.FlagArray
+	ConfigPath  []string
 	PollTimeout time.Duration
 	Port        int
 }
