@@ -9,6 +9,7 @@ utilizing Kubernetes native ConfigMaps as a source of truth. This aids in migrat
 This project currently supports 3 APIs for fetching config:
 * GET /configs/:appId/:cluster/:namespace
 * GET /configfiles/json/:appId/:cluster/:namespace
+* GET /services/config
 * GET /notifications/v2 _(long polling)_
 
 # Usage Guide
