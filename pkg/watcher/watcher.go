@@ -17,8 +17,9 @@ import (
 
 // Namespace holds the namespace config
 type Namespace struct {
-	ReleaseKey     string            `yaml:"releaseKey" json:"releaseKey"`
-	Configurations map[string]string `yaml:"configurations" json:"configurations"`
+	ReleaseKey string                      `yaml:"releaseKey" json:"releaseKey"`
+	Properties map[string]string           `yaml:"properties" json:"properties"`
+	Yaml       map[interface{}]interface{} `yaml:"yml" json:"yml"`
 }
 
 // ConfigMap holds the app config
@@ -154,10 +155,10 @@ func (w *Watcher) readConfigMap() error {
 				if nsKey == "" {
 					return fmt.Errorf("invalid namespace name '%s' in %s/%s", nsKey, appKey, clusterKey)
 				}
-				if ns.Configurations == nil {
+				if ns.Properties == nil && ns.Yaml == nil {
 					return fmt.Errorf("invalid namespace '%s' in %s/%s", nsKey, appKey, clusterKey)
 				}
-				for configKey := range ns.Configurations {
+				for configKey := range ns.Properties {
 					if configKey == "" {
 						return fmt.Errorf("invalid config key '%s' in %s/%s/%s", configKey, appKey, clusterKey, nsKey)
 					}

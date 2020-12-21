@@ -21,19 +21,94 @@ var stubConfigs = []watcher.ConfigMap{
 			"cluster": {
 				"ns": {
 					ReleaseKey: "abc",
-					Configurations: map[string]string{
+					Properties: map[string]string{
 						"mysql": "mysql://root@localhost/mysql",
 					},
+					Yaml: map[interface{}]interface{}{},
 				},
-				"ns2.properties": {
+				"ns2": {
 					ReleaseKey: "abc",
-					Configurations: map[string]string{
-						"timezone": "Asia/Kolkata",
+					Properties: map[string]string{},
+					Yaml: map[interface{}]interface{}{
+						"spring": map[interface{}]interface{}{
+							"datasource": map[interface{}]interface{}{
+								"dynamic": map[interface{}]interface{}{
+									"p6spy":   "false",
+									"primary": "master",
+								},
+							},
+						},
 					},
 				},
 			},
 		},
 	},
+}
+
+func TestParseNamespace(t *testing.T) {
+	// mock fs
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("/dev", 0755)
+	data, err := yaml.Marshal(stubConfigs[0])
+	require.Nil(t, err)
+	require.Nil(t, afero.WriteFile(appFS, "/dev/null", data, 0644))
+
+	// setup apollo
+	filepaths := []string{"/dev/null"}
+	a, err := New(context.Background(), Config{ConfigPath: filepaths})
+	require.EqualError(t, err, "invalid config file")
+	for _, w := range a.w {
+		w.MockFS(appFS)
+		require.Nil(t, w.ReloadConfig())
+	}
+
+	t.Run("get ns.properties", func(t *testing.T) {
+		ns, ext := a.parseNamespace("ns.properties")
+		require.Equal(
+			t,
+			"ns",
+			ns,
+			ns,
+		)
+		require.Equal(
+			t,
+			".properties",
+			ext,
+			ext,
+		)
+	})
+
+	t.Run("get ns2.yml", func(t *testing.T) {
+		ns, ext := a.parseNamespace("ns2.yml")
+		require.Equal(
+			t,
+			"ns2",
+			ns,
+			ns,
+		)
+		require.Equal(
+			t,
+			".yml",
+			ext,
+			ext,
+		)
+	})
+
+	t.Run("get ns", func(t *testing.T) {
+		ns, ext := a.parseNamespace("ns")
+		require.Equal(
+			t,
+			"ns",
+			ns,
+			ns,
+		)
+		require.Equal(
+			t,
+			".properties",
+			ext,
+			ext,
+		)
+	})
 }
 
 func TestGetNamespace(t *testing.T) {
@@ -53,7 +128,7 @@ func TestGetNamespace(t *testing.T) {
 		require.Nil(t, w.ReloadConfig())
 	}
 
-	t.Run("get ns", func(t *testing.T) {
+	t.Run("get namespace in properties format", func(t *testing.T) {
 		ns, err := a.getNamespace("app", "cluster", "ns")
 		require.Nil(t, err)
 		require.Equal(
@@ -64,7 +139,7 @@ func TestGetNamespace(t *testing.T) {
 		)
 	})
 
-	t.Run("get ns.properties", func(t *testing.T) {
+	t.Run("get namespace in yaml format", func(t *testing.T) {
 		ns, err := a.getNamespace("app", "cluster", "ns")
 		require.Nil(t, err)
 		require.Equal(
@@ -74,15 +149,56 @@ func TestGetNamespace(t *testing.T) {
 			ns,
 		)
 	})
+}
 
-	t.Run("get ns2", func(t *testing.T) {
-		ns, err := a.getNamespace("app", "cluster", "ns2")
+func TestFetNamespaceConfig(t *testing.T) {
+	// mock fs
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("/dev", 0755)
+	data, err := yaml.Marshal(stubConfigs[0])
+	require.Nil(t, err)
+	require.Nil(t, afero.WriteFile(appFS, "/dev/null", data, 0644))
+
+	// setup apollo
+	filepaths := []string{"/dev/null"}
+	a, err := New(context.Background(), Config{ConfigPath: filepaths, Port: 8070})
+	require.EqualError(t, err, "invalid config file")
+	for _, w := range a.w {
+		w.MockFS(appFS)
+		require.Nil(t, w.ReloadConfig())
+	}
+
+	t.Run("get properties", func(t *testing.T) {
+		cfg, err := a.getNamespaceConfig(".properties", stubConfigs[0]["app"]["cluster"]["ns"])
 		require.Nil(t, err)
 		require.Equal(
 			t,
-			stubConfigs[0]["app"]["cluster"]["ns2.properties"],
-			ns,
-			ns,
+			stubConfigs[0]["app"]["cluster"]["ns"].Properties,
+			cfg,
+			cfg,
+		)
+	})
+
+	t.Run("get yml", func(t *testing.T) {
+		cfg, err := a.getNamespaceConfig(".yml", stubConfigs[0]["app"]["cluster"]["ns2"])
+		require.Nil(t, err)
+
+		c, ok := cfg.(map[string]string)
+		require.Equal(t, true, ok)
+
+		content, found := c["content"]
+		require.Equal(t, true, found)
+
+		y := make(map[interface{}]interface{})
+		yaml.Unmarshal([]byte(content), y)
+
+		t.Log(y)
+
+		require.Equal(
+			t,
+			stubConfigs[0]["app"]["cluster"]["ns2"].Yaml,
+			y,
+			y,
 		)
 	})
 }
