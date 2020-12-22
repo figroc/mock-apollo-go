@@ -21,13 +21,223 @@ var stubConfigs = []watcher.ConfigMap{
 			"cluster": {
 				"ns": {
 					ReleaseKey: "abc",
-					Configurations: map[string]string{
+					Properties: map[string]string{
 						"mysql": "mysql://root@localhost/mysql",
+					},
+					Yaml: map[interface{}]interface{}{},
+				},
+				"ns2": {
+					ReleaseKey: "abc",
+					Properties: map[string]string{},
+					Yaml: map[interface{}]interface{}{
+						"spring": map[interface{}]interface{}{
+							"datasource": map[interface{}]interface{}{
+								"dynamic": map[interface{}]interface{}{
+									"p6spy":   "false",
+									"primary": "master",
+								},
+							},
+						},
 					},
 				},
 			},
 		},
 	},
+}
+
+func TestParseNamespace(t *testing.T) {
+	// mock fs
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("/dev", 0755)
+	data, err := yaml.Marshal(stubConfigs[0])
+	require.Nil(t, err)
+	require.Nil(t, afero.WriteFile(appFS, "/dev/null", data, 0644))
+
+	// setup apollo
+	filepaths := []string{"/dev/null"}
+	a, err := New(context.Background(), Config{ConfigPath: filepaths})
+	require.EqualError(t, err, "invalid config file")
+	for _, w := range a.w {
+		w.MockFS(appFS)
+		require.Nil(t, w.ReloadConfig())
+	}
+
+	t.Run("get ns.properties", func(t *testing.T) {
+		ns, ext := a.parseNamespace("ns.properties")
+		require.Equal(
+			t,
+			"ns",
+			ns,
+			ns,
+		)
+		require.Equal(
+			t,
+			".properties",
+			ext,
+			ext,
+		)
+	})
+
+	t.Run("get ns2.yml", func(t *testing.T) {
+		ns, ext := a.parseNamespace("ns2.yml")
+		require.Equal(
+			t,
+			"ns2",
+			ns,
+			ns,
+		)
+		require.Equal(
+			t,
+			".yml",
+			ext,
+			ext,
+		)
+	})
+
+	t.Run("get ns", func(t *testing.T) {
+		ns, ext := a.parseNamespace("ns")
+		require.Equal(
+			t,
+			"ns",
+			ns,
+			ns,
+		)
+		require.Equal(
+			t,
+			".properties",
+			ext,
+			ext,
+		)
+	})
+}
+
+func TestGetNamespace(t *testing.T) {
+	// mock fs
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("/dev", 0755)
+	data, err := yaml.Marshal(stubConfigs[0])
+	require.Nil(t, err)
+	require.Nil(t, afero.WriteFile(appFS, "/dev/null", data, 0644))
+
+	// setup apollo
+	filepaths := []string{"/dev/null"}
+	a, err := New(context.Background(), Config{ConfigPath: filepaths})
+	require.EqualError(t, err, "invalid config file")
+	for _, w := range a.w {
+		w.MockFS(appFS)
+		require.Nil(t, w.ReloadConfig())
+	}
+
+	t.Run("get namespace in properties format", func(t *testing.T) {
+		ns, err := a.getNamespace("app", "cluster", "ns")
+		require.Nil(t, err)
+		require.Equal(
+			t,
+			stubConfigs[0]["app"]["cluster"]["ns"],
+			ns,
+			ns,
+		)
+	})
+
+	t.Run("get namespace in yaml format", func(t *testing.T) {
+		ns, err := a.getNamespace("app", "cluster", "ns")
+		require.Nil(t, err)
+		require.Equal(
+			t,
+			stubConfigs[0]["app"]["cluster"]["ns"],
+			ns,
+			ns,
+		)
+	})
+}
+
+func TestGetNamespaceConfig(t *testing.T) {
+	// mock fs
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("/dev", 0755)
+	data, err := yaml.Marshal(stubConfigs[0])
+	require.Nil(t, err)
+	require.Nil(t, afero.WriteFile(appFS, "/dev/null", data, 0644))
+
+	// setup apollo
+	filepaths := []string{"/dev/null"}
+	a, err := New(context.Background(), Config{ConfigPath: filepaths, Port: 8070})
+	require.EqualError(t, err, "invalid config file")
+	for _, w := range a.w {
+		w.MockFS(appFS)
+		require.Nil(t, w.ReloadConfig())
+	}
+
+	t.Run("get properties", func(t *testing.T) {
+		cfg, err := a.getNamespaceConfig(".properties", stubConfigs[0]["app"]["cluster"]["ns"])
+		require.Nil(t, err)
+		require.Equal(
+			t,
+			stubConfigs[0]["app"]["cluster"]["ns"].Properties,
+			cfg,
+			cfg,
+		)
+	})
+
+	t.Run("get yml", func(t *testing.T) {
+		cfg, err := a.getNamespaceConfig(".yml", stubConfigs[0]["app"]["cluster"]["ns2"])
+		require.Nil(t, err)
+
+		c, ok := cfg.(map[string]string)
+		require.Equal(t, true, ok)
+
+		content, found := c["content"]
+		require.Equal(t, true, found)
+
+		y := make(map[interface{}]interface{})
+		yaml.Unmarshal([]byte(content), y)
+
+		t.Log(y)
+
+		require.Equal(
+			t,
+			stubConfigs[0]["app"]["cluster"]["ns2"].Yaml,
+			y,
+			y,
+		)
+	})
+}
+
+func TestQueryService(t *testing.T) {
+	// mock fs
+	appFS := afero.NewMemMapFs()
+	appFS.MkdirAll("/dev", 0755)
+	data, err := yaml.Marshal(stubConfigs[0])
+	require.Nil(t, err)
+	require.Nil(t, afero.WriteFile(appFS, "/dev/null", data, 0644))
+
+	// setup apollo
+	filepaths := []string{"/dev/null"}
+	a, err := New(context.Background(), Config{ConfigPath: filepaths, Port: 8070})
+	require.EqualError(t, err, "invalid config file")
+	for _, w := range a.w {
+		w.MockFS(appFS)
+		require.Nil(t, w.ReloadConfig())
+	}
+
+	t.Run("status 200", func(t *testing.T) {
+		// call the handler
+		req := httptest.NewRequest("GET", "/services/config?appId=app", nil)
+		w := httptest.NewRecorder()
+		ps := httprouter.Params{}
+		a.queryService(w, req, ps)
+
+		rsp := w.Result()
+		require.Equal(t, 200, rsp.StatusCode)
+		b, err := ioutil.ReadAll(rsp.Body)
+		require.Nil(t, err)
+		require.JSONEq(
+			t,
+			`[{"appName":"APOLLO-CONFIGSERVICE","instanceId":"localhost:apollo-configservice:8070","homepageUrl":"http://localhost:8070/"}]`,
+			string(b),
+			string(b),
+		)
+	})
 }
 
 func TestQueryConfig(t *testing.T) {
@@ -39,10 +249,13 @@ func TestQueryConfig(t *testing.T) {
 	require.Nil(t, afero.WriteFile(appFS, "/dev/null", data, 0644))
 
 	// setup apollo
-	a, err := New(context.Background(), Config{ConfigPath: "/dev/null"})
+	filepaths := []string{"/dev/null"}
+	a, err := New(context.Background(), Config{ConfigPath: filepaths})
 	require.EqualError(t, err, "invalid config file")
-	a.w.MockFS(appFS)
-	require.Nil(t, a.w.ReloadConfig())
+	for _, w := range a.w {
+		w.MockFS(appFS)
+		require.Nil(t, w.ReloadConfig())
+	}
 
 	t.Run("status 200", func(t *testing.T) {
 		// call the handler
@@ -115,10 +328,13 @@ func TestQueryConfigJSON(t *testing.T) {
 	require.Nil(t, afero.WriteFile(appFS, "/dev/null", data, 0644))
 
 	// setup apollo
-	a, err := New(context.Background(), Config{ConfigPath: "/dev/null"})
+	filepaths := []string{"/dev/null"}
+	a, err := New(context.Background(), Config{ConfigPath: filepaths})
 	require.EqualError(t, err, "invalid config file")
-	a.w.MockFS(appFS)
-	require.Nil(t, a.w.ReloadConfig())
+	for _, w := range a.w {
+		w.MockFS(appFS)
+		require.Nil(t, w.ReloadConfig())
+	}
 
 	t.Run("status 200", func(t *testing.T) {
 		// call the handler
@@ -162,7 +378,8 @@ func TestQueryConfigJSON(t *testing.T) {
 func TestNotificationsLongPolling(t *testing.T) {
 	t.Run("change", func(t *testing.T) {
 		// setup apollo
-		a, err := New(context.Background(), Config{ConfigPath: "/dev/null"})
+		filepaths := []string{"/dev/null"}
+		a, err := New(context.Background(), Config{ConfigPath: filepaths})
 		require.Error(t, err)
 
 		// mock fs
@@ -171,7 +388,9 @@ func TestNotificationsLongPolling(t *testing.T) {
 		data, err := yaml.Marshal(stubConfigs[0])
 		require.Nil(t, err)
 		require.Nil(t, afero.WriteFile(appFS, "/dev/null", data, 0644))
-		a.w.MockFS(appFS)
+		for _, w := range a.w {
+			w.MockFS(appFS)
+		}
 
 		// call the handler
 		q := "?notifications=" + url.QueryEscape(`[{"notificationId":1,"namespaceName":"ns"}]`)
@@ -188,7 +407,9 @@ func TestNotificationsLongPolling(t *testing.T) {
 		go func() {
 			// trigger config update in the background
 			time.Sleep(5 * time.Millisecond)
-			a.w.TriggerEvent()
+			for _, w := range a.w {
+				w.TriggerEvent()
+			}
 		}()
 		a.longPolling(w, req, ps)
 		rsp := w.Result()
@@ -209,12 +430,15 @@ func TestNotificationsLongPolling(t *testing.T) {
 		appFS.MkdirAll("/dev", 0755)
 
 		// setup apollo
+		filepaths := []string{"/dev/null"}
 		a, err := New(context.Background(), Config{
-			ConfigPath:  "/dev/null",
+			ConfigPath:  filepaths,
 			PollTimeout: time.Second,
 		})
 		require.Error(t, err)
-		a.w.MockFS(appFS)
+		for _, w := range a.w {
+			w.MockFS(appFS)
+		}
 
 		// call the handler
 		q := "?notifications=" + url.QueryEscape(`[{"notificationId":1,"namespaceName":"ns"}]`)
@@ -239,9 +463,12 @@ func TestNotificationsLongPolling(t *testing.T) {
 		appFS.MkdirAll("/dev", 0755)
 
 		// setup apollo
-		a, err := New(context.Background(), Config{ConfigPath: "/dev/null"})
+		filepaths := []string{"/dev/null"}
+		a, err := New(context.Background(), Config{ConfigPath: filepaths})
 		require.Error(t, err)
-		a.w.MockFS(appFS)
+		for _, w := range a.w {
+			w.MockFS(appFS)
+		}
 
 		// call the handler
 		q := "?notifications=" + url.QueryEscape(`[{"notificationId":1,"namespaceName":"ns"}]`)

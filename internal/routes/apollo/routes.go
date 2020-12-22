@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,20 +15,22 @@ import (
 	"github.com/lalamove/mock-apollo-go/pkg/longpoll"
 	"github.com/lalamove/mock-apollo-go/pkg/watcher"
 	"github.com/lalamove/nui/nlogger"
+	"gopkg.in/yaml.v2"
 )
 
 // Config is an object that stores the package config
 type Config struct {
 	Log         nlogger.Provider
-	ConfigPath  string
+	ConfigPath  []string
 	PollTimeout time.Duration
+	Port        int
 }
 
 // Apollo serves the mock apollo http routes
 type Apollo struct {
 	mu    sync.Mutex
 	cfg   Config
-	w     *watcher.Watcher
+	w     []*watcher.Watcher
 	polls map[*longpoll.Poll]bool
 }
 
@@ -38,8 +42,10 @@ func New(ctx context.Context, cfg Config) (*Apollo, error) {
 		polls: make(map[*longpoll.Poll]bool),
 	}
 	// start watching the config file
-	if err := a.watch(ctx); err != nil {
-		return a, err
+	for _, f := range a.cfg.ConfigPath {
+		if err := a.watch(ctx, f); err != nil {
+			return a, err
+		}
 	}
 	return a, nil
 }
@@ -55,6 +61,7 @@ func (a *Apollo) Routes(r *httprouter.Router) {
 	r.GET("/healthz", a.healthz)
 	r.GET("/configs/:appId/:cluster/:namespace", a.queryConfig)
 	r.GET("/configfiles/json/:appId/:cluster/:namespace", a.queryConfigJSON)
+	r.GET("/services/config", a.queryService)
 	r.GET("/notifications/v2", a.longPolling)
 
 	// capture invalid http calls
@@ -80,32 +87,105 @@ func (a *Apollo) healthz(w http.ResponseWriter, r *http.Request, ps httprouter.P
 	w.Write([]byte("OK"))
 }
 
+func (a *Apollo) parseNamespace(namespace string) (string, string) {
+	ext := filepath.Ext(namespace)
+
+	switch ext {
+	case ".properties", ".yml":
+		s := strings.TrimSuffix(namespace, ext)
+		return s, ext
+	default:
+		return namespace, ".properties"
+	}
+}
+
+func (a *Apollo) getNamespace(appID string, cluster string, namespace string) (watcher.Namespace, error) {
+	for _, w := range a.w {
+		cm := w.Config()
+
+		for _, v := range cm {
+			ns, ok := v[cluster][namespace]
+			if ok {
+				return ns, nil
+			}
+		}
+	}
+
+	return watcher.Namespace{}, fmt.Errorf("namespace no found")
+}
+
+func (a *Apollo) getNamespaceConfig(extension string, namespace watcher.Namespace) (interface{}, error) {
+	switch extension {
+	case ".yml":
+		d, err := yaml.Marshal(namespace.Yaml)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]string{"content": string(d)}, nil
+	case ".properties":
+		return namespace.Properties, nil
+	}
+
+	return nil, fmt.Errorf("non-support format")
+}
+
+func (a *Apollo) queryService(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+	log := a.cfg.Log.Get()
+	type svc struct {
+		AppName     string `json:"appName"`
+		InstanceId  string `json:"instanceId"`
+		HomepageUrl string `json:"homepageUrl"`
+	}
+	type rsp []*svc
+	json, err := json.Marshal(rsp{
+		&svc{
+			AppName:     "APOLLO-CONFIGSERVICE",
+			InstanceId:  fmt.Sprintf("localhost:apollo-configservice:%d", a.cfg.Port),
+			HomepageUrl: fmt.Sprintf("http://localhost:%d/", a.cfg.Port),
+		},
+	})
+	if err != nil {
+		log.Error(err.Error())
+		w.WriteHeader(500)
+		return
+	}
+	w.Write(json)
+	log.Debug(fmt.Sprintf("served service for request: %s", r.URL.String()))
+}
+
 func (a *Apollo) queryConfig(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	log := a.cfg.Log.Get()
 	appID := ps.ByName("appId")
 	cluster := ps.ByName("cluster")
-	namespace := ps.ByName("namespace")
+	namespace, ext := a.parseNamespace(ps.ByName("namespace"))
 
-	cm := a.w.Config()
-	ns, ok := cm[appID][cluster][namespace]
-	if !ok {
+	ns, err := a.getNamespace(appID, cluster, namespace)
+	if err != nil {
+		log.Warn(fmt.Sprintf("no namespace for request: %s", r.URL.String()))
+		w.WriteHeader(404)
+		return
+	}
+
+	cfg, err := a.getNamespaceConfig(ext, ns)
+	if err != nil {
 		log.Warn(fmt.Sprintf("no config for request: %s", r.URL.String()))
 		w.WriteHeader(404)
 		return
 	}
+
 	type rsp struct {
-		AppID          string            `json:"appId"`
-		Cluster        string            `json:"cluster"`
-		Namespace      string            `json:"namespaceName"`
-		ReleaseKey     string            `json:"releaseKey"`
-		Configurations map[string]string `json:"configurations"`
+		AppID          string      `json:"appId"`
+		Cluster        string      `json:"cluster"`
+		Namespace      string      `json:"namespaceName"`
+		ReleaseKey     string      `json:"releaseKey"`
+		Configurations interface{} `json:"configurations"`
 	}
 	json, err := json.Marshal(&rsp{
 		AppID:          appID,
 		Cluster:        cluster,
 		Namespace:      namespace,
 		ReleaseKey:     ns.ReleaseKey,
-		Configurations: ns.Configurations,
+		Configurations: cfg,
 	})
 	if err != nil {
 		log.Error(err.Error())
@@ -120,18 +200,23 @@ func (a *Apollo) queryConfigJSON(w http.ResponseWriter, r *http.Request, ps http
 	log := a.cfg.Log.Get()
 	appID := ps.ByName("appId")
 	cluster := ps.ByName("cluster")
-	namespace := ps.ByName("namespace")
+	namespace, ext := a.parseNamespace(ps.ByName("namespace"))
 
-	cm := a.w.Config()
+	ns, err := a.getNamespace(appID, cluster, namespace)
+	if err != nil {
+		log.Warn(fmt.Sprintf("no namespace for request: %s", r.URL.String()))
+		w.WriteHeader(404)
+		return
+	}
 
-	ns, ok := cm[appID][cluster][namespace]
-	if !ok {
+	cfg, err := a.getNamespaceConfig(ext, ns)
+	if err != nil {
 		log.Warn(fmt.Sprintf("no config for request: %s", r.URL.String()))
 		w.WriteHeader(404)
 		return
 	}
 
-	json, err := json.Marshal(ns.Configurations)
+	json, err := json.Marshal(cfg)
 	if err != nil {
 		log.Error(err.Error())
 		w.WriteHeader(500)
@@ -186,10 +271,10 @@ func (a *Apollo) newPoll(ctx context.Context, notifications []longpoll.Notificat
 	return nil
 }
 
-func (a *Apollo) watch(ctx context.Context) error {
+func (a *Apollo) watch(ctx context.Context, filePath string) error {
 	cfg := watcher.Config{
 		Log:  a.cfg.Log,
-		File: a.cfg.ConfigPath,
+		File: filePath,
 	}
 	w, err := watcher.New(ctx, cfg)
 	go func() {
@@ -208,6 +293,6 @@ func (a *Apollo) watch(ctx context.Context) error {
 			}
 		}
 	}()
-	a.w = w
+	a.w = append(a.w, w)
 	return err
 }

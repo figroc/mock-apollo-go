@@ -17,10 +17,11 @@ var stubConfigs = []ConfigMap{
 			"myCluster": {
 				"myNamespace": {
 					ReleaseKey: "abc",
-					Configurations: map[string]string{
+					Properties: map[string]string{
 						"mysql.uri":     "mysql://root@localhost/mysql",
 						"snowflake.uri": "http://192.168.0.1/snowflake",
 					},
+					Yaml: map[interface{}]interface{}{},
 				},
 			},
 		},
@@ -30,10 +31,11 @@ var stubConfigs = []ConfigMap{
 			"myCluster": {
 				"myNamespace": {
 					ReleaseKey: "abc",
-					Configurations: map[string]string{
+					Properties: map[string]string{
 						"mysql.uri":     "mysql://root@localhost/mysql2",
 						"snowflake.uri": "http://192.168.0.1/snowflake",
 					},
+					Yaml: map[interface{}]interface{}{},
 				},
 			},
 		},
@@ -109,7 +111,7 @@ func TestReadConfigMap(t *testing.T) {
             myCluster:
               myNamespace:
                 releaseKey: "20200309212653-7fec91b6d277b5ab"
-                configurations:
+                properties:
                   snowflake.uri: "http://192.168.0.1/snowflake"`,
 		},
 		{
@@ -124,7 +126,7 @@ func TestReadConfigMap(t *testing.T) {
             "":
               myNamespace:
                 releaseKey: "20200309212653-7fec91b6d277b5ab"
-                configurations:
+                properties:
                   snowflake.uri: "http://192.168.0.1/snowflake"`,
 		},
 		{
@@ -140,7 +142,7 @@ func TestReadConfigMap(t *testing.T) {
             myCluster:
               "":
                 releaseKey: "20200309212653-7fec91b6d277b5ab"
-                configurations:
+                properties:
                   snowflake.uri: "http://192.168.0.1/snowflake"`,
 		},
 		{
@@ -157,7 +159,7 @@ func TestReadConfigMap(t *testing.T) {
             myCluster:
               myNamespace:
                 releaseKey: "20200309212653-7fec91b6d277b5ab"
-                configurations:
+                properties:
                   "": "mysql://root@localhost/mysql"
                   snowflake.uri: "http://192.168.0.1/snowflake"`,
 		},
