@@ -151,7 +151,7 @@ func TestGetNamespace(t *testing.T) {
 	})
 }
 
-func TestFetNamespaceConfig(t *testing.T) {
+func TestGetNamespaceConfig(t *testing.T) {
 	// mock fs
 	appFS := afero.NewMemMapFs()
 	appFS.MkdirAll("/dev", 0755)
