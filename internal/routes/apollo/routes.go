@@ -131,8 +131,6 @@ func (a *Apollo) getNamespaceConfig(extension string, namespace watcher.Namespac
 
 func (a *Apollo) queryService(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	log := a.cfg.Log.Get()
-	// q := r.URL.Query()
-	// appID := q.Get("appId")
 	type svc struct {
 		AppName     string `json:"appName"`
 		InstanceId  string `json:"instanceId"`
