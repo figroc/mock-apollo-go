@@ -130,15 +130,15 @@ func (a *Apollo) queryService(w http.ResponseWriter, r *http.Request, ps httprou
 	log := a.cfg.Log.Get()
 	type svc struct {
 		AppName     string `json:"appName"`
-		InstanceId  string `json:"instanceId"`
-		HomepageUrl string `json:"homepageUrl"`
+		InstanceID  string `json:"instanceId"`
+		HomepageURL string `json:"homepageUrl"`
 	}
 	type rsp []*svc
 	json, err := json.Marshal(rsp{
 		&svc{
 			AppName:     "APOLLO-CONFIGSERVICE",
-			InstanceId:  fmt.Sprintf("localhost:apollo-configservice:%d", a.cfg.Port),
-			HomepageUrl: fmt.Sprintf("http://localhost:%d/", a.cfg.Port),
+			InstanceID:  fmt.Sprintf("localhost:apollo-configservice:%d", a.cfg.Port),
+			HomepageURL: fmt.Sprintf("http://localhost:%d/", a.cfg.Port),
 		},
 	})
 	if err != nil {
