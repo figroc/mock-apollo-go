@@ -15,7 +15,6 @@ import (
 	"github.com/lalamove/mock-apollo-go/pkg/longpoll"
 	"github.com/lalamove/mock-apollo-go/pkg/watcher"
 	"github.com/lalamove/nui/nlogger"
-	"gopkg.in/yaml.v2"
 )
 
 // Config is an object that stores the package config
@@ -91,7 +90,7 @@ func (a *Apollo) parseNamespace(namespace string) (string, string) {
 	ext := filepath.Ext(namespace)
 
 	switch ext {
-	case ".properties", ".yml":
+	case ".properties", ".yml", ".xml":
 		s := strings.TrimSuffix(namespace, ext)
 		return s, ext
 	default:
@@ -117,11 +116,9 @@ func (a *Apollo) getNamespace(appID string, cluster string, namespace string) (w
 func (a *Apollo) getNamespaceConfig(extension string, namespace watcher.Namespace) (interface{}, error) {
 	switch extension {
 	case ".yml":
-		d, err := yaml.Marshal(namespace.Yaml)
-		if err != nil {
-			return nil, err
-		}
-		return map[string]string{"content": string(d)}, nil
+		return map[string]string{"content": namespace.Yaml}, nil
+	case ".xml":
+		return map[string]string{"content": namespace.XML}, nil
 	case ".properties":
 		return namespace.Properties, nil
 	}

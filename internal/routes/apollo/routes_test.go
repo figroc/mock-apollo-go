@@ -5,11 +5,13 @@ import (
 	"io/ioutil"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/lalamove/mock-apollo-go/pkg/watcher"
+	"github.com/lalamove/nui/nlogger"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
@@ -23,22 +25,21 @@ var stubConfigs = []watcher.ConfigMap{
 					ReleaseKey: "abc",
 					Properties: map[string]string{
 						"mysql": "mysql://root@localhost/mysql",
-					},
-					Yaml: map[interface{}]interface{}{},
+					}, Yaml: `spring:
+  datasource:
+    dynamic:
+      p6spy: false
+      primary: master
+`,
+					XML: "",
 				},
 				"ns2": {
 					ReleaseKey: "abc",
 					Properties: map[string]string{},
-					Yaml: map[interface{}]interface{}{
-						"spring": map[interface{}]interface{}{
-							"datasource": map[interface{}]interface{}{
-								"dynamic": map[interface{}]interface{}{
-									"p6spy":   "false",
-									"primary": "master",
-								},
-							},
-						},
-					},
+					Yaml: `[raw] 
+key = value
+`,
+					XML: "plain text",
 				},
 			},
 		},
@@ -46,6 +47,8 @@ var stubConfigs = []watcher.ConfigMap{
 }
 
 func TestParseNamespace(t *testing.T) {
+	log := nlogger.NewProvider(nlogger.New(os.Stdout, ""))
+
 	// mock fs
 	appFS := afero.NewMemMapFs()
 	appFS.MkdirAll("/dev", 0755)
@@ -59,7 +62,7 @@ func TestParseNamespace(t *testing.T) {
 	require.EqualError(t, err, "invalid config file")
 	for _, w := range a.w {
 		w.MockFS(appFS)
-		require.Nil(t, w.ReloadConfig())
+		require.Nil(t, w.ReloadConfig(log))
 	}
 
 	t.Run("get ns.properties", func(t *testing.T) {
@@ -112,6 +115,8 @@ func TestParseNamespace(t *testing.T) {
 }
 
 func TestGetNamespace(t *testing.T) {
+	log := nlogger.NewProvider(nlogger.New(os.Stdout, ""))
+
 	// mock fs
 	appFS := afero.NewMemMapFs()
 	appFS.MkdirAll("/dev", 0755)
@@ -125,7 +130,7 @@ func TestGetNamespace(t *testing.T) {
 	require.EqualError(t, err, "invalid config file")
 	for _, w := range a.w {
 		w.MockFS(appFS)
-		require.Nil(t, w.ReloadConfig())
+		require.Nil(t, w.ReloadConfig(log))
 	}
 
 	t.Run("get namespace in properties format", func(t *testing.T) {
@@ -152,6 +157,8 @@ func TestGetNamespace(t *testing.T) {
 }
 
 func TestGetNamespaceConfig(t *testing.T) {
+	log := nlogger.NewProvider(nlogger.New(os.Stdout, ""))
+
 	// mock fs
 	appFS := afero.NewMemMapFs()
 	appFS.MkdirAll("/dev", 0755)
@@ -165,7 +172,7 @@ func TestGetNamespaceConfig(t *testing.T) {
 	require.EqualError(t, err, "invalid config file")
 	for _, w := range a.w {
 		w.MockFS(appFS)
-		require.Nil(t, w.ReloadConfig())
+		require.Nil(t, w.ReloadConfig(log))
 	}
 
 	t.Run("get properties", func(t *testing.T) {
@@ -180,30 +187,71 @@ func TestGetNamespaceConfig(t *testing.T) {
 	})
 
 	t.Run("get yml", func(t *testing.T) {
+		cfg, err := a.getNamespaceConfig(".yml", stubConfigs[0]["app"]["cluster"]["ns"])
+		require.Nil(t, err)
+
+		c, ok := cfg.(map[string]string)
+		require.True(t, ok)
+
+		content, found := c["content"]
+		require.True(t, found)
+
+		y := make(map[interface{}]interface{})
+		err = yaml.Unmarshal([]byte(content), y)
+		require.Nil(t, err)
+		b, err := yaml.Marshal(y)
+		t.Log(string(b))
+		require.Nil(t, err)
+
+		require.Equal(
+			t,
+			stubConfigs[0]["app"]["cluster"]["ns"].Yaml,
+			string(b),
+		)
+	})
+
+	t.Run("get xml", func(t *testing.T) {
+		cfg, err := a.getNamespaceConfig(".xml", stubConfigs[0]["app"]["cluster"]["ns2"])
+		require.Nil(t, err)
+
+		c, ok := cfg.(map[string]string)
+		require.True(t, ok)
+
+		content, found := c["content"]
+		require.True(t, found)
+
+		require.Equal(
+			t,
+			stubConfigs[0]["app"]["cluster"]["ns2"].XML,
+			content,
+		)
+	})
+
+	t.Run("get invalid yml", func(t *testing.T) {
 		cfg, err := a.getNamespaceConfig(".yml", stubConfigs[0]["app"]["cluster"]["ns2"])
 		require.Nil(t, err)
 
 		c, ok := cfg.(map[string]string)
-		require.Equal(t, true, ok)
+		require.True(t, ok)
 
 		content, found := c["content"]
-		require.Equal(t, true, found)
+		require.True(t, found)
 
 		y := make(map[interface{}]interface{})
-		yaml.Unmarshal([]byte(content), y)
-
-		t.Log(y)
+		err = yaml.Unmarshal([]byte(content), y)
+		require.Error(t, err)
 
 		require.Equal(
 			t,
 			stubConfigs[0]["app"]["cluster"]["ns2"].Yaml,
-			y,
-			y,
+			content,
 		)
 	})
 }
 
 func TestQueryService(t *testing.T) {
+	log := nlogger.NewProvider(nlogger.New(os.Stdout, ""))
+
 	// mock fs
 	appFS := afero.NewMemMapFs()
 	appFS.MkdirAll("/dev", 0755)
@@ -217,7 +265,7 @@ func TestQueryService(t *testing.T) {
 	require.EqualError(t, err, "invalid config file")
 	for _, w := range a.w {
 		w.MockFS(appFS)
-		require.Nil(t, w.ReloadConfig())
+		require.Nil(t, w.ReloadConfig(log))
 	}
 
 	t.Run("status 200", func(t *testing.T) {
@@ -241,6 +289,8 @@ func TestQueryService(t *testing.T) {
 }
 
 func TestQueryConfig(t *testing.T) {
+	log := nlogger.NewProvider(nlogger.New(os.Stdout, ""))
+
 	// mock fs
 	appFS := afero.NewMemMapFs()
 	appFS.MkdirAll("/dev", 0755)
@@ -254,7 +304,7 @@ func TestQueryConfig(t *testing.T) {
 	require.EqualError(t, err, "invalid config file")
 	for _, w := range a.w {
 		w.MockFS(appFS)
-		require.Nil(t, w.ReloadConfig())
+		require.Nil(t, w.ReloadConfig(log))
 	}
 
 	t.Run("status 200", func(t *testing.T) {
@@ -320,6 +370,8 @@ func TestQueryConfig(t *testing.T) {
 }
 
 func TestQueryConfigJSON(t *testing.T) {
+	log := nlogger.NewProvider(nlogger.New(os.Stdout, ""))
+
 	// mock fs
 	appFS := afero.NewMemMapFs()
 	appFS.MkdirAll("/dev", 0755)
@@ -333,7 +385,7 @@ func TestQueryConfigJSON(t *testing.T) {
 	require.EqualError(t, err, "invalid config file")
 	for _, w := range a.w {
 		w.MockFS(appFS)
-		require.Nil(t, w.ReloadConfig())
+		require.Nil(t, w.ReloadConfig(log))
 	}
 
 	t.Run("status 200", func(t *testing.T) {
