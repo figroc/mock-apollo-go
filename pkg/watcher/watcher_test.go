@@ -2,9 +2,11 @@ package watcher
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/lalamove/nui/nlogger"
 	"github.com/radovskyb/watcher"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
@@ -21,7 +23,8 @@ var stubConfigs = []ConfigMap{
 						"mysql.uri":     "mysql://root@localhost/mysql",
 						"snowflake.uri": "http://192.168.0.1/snowflake",
 					},
-					Yaml: map[interface{}]interface{}{},
+					Yaml: "",
+					XML:  "",
 				},
 			},
 		},
@@ -35,7 +38,8 @@ var stubConfigs = []ConfigMap{
 						"mysql.uri":     "mysql://root@localhost/mysql2",
 						"snowflake.uri": "http://192.168.0.1/snowflake",
 					},
-					Yaml: map[interface{}]interface{}{},
+					Yaml: "invalid yml; key = value",
+					XML:  "",
 				},
 			},
 		},
@@ -80,6 +84,8 @@ func TestWatcher(t *testing.T) {
 }
 
 func TestReadConfigMap(t *testing.T) {
+	log := nlogger.NewProvider(nlogger.New(os.Stdout, ""))
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
 
@@ -92,12 +98,12 @@ func TestReadConfigMap(t *testing.T) {
 	w.MockFS(appFS)
 
 	t.Run("file not exist", func(t *testing.T) {
-		require.EqualError(t, w.readConfigMap(), "open /dev/null: file does not exist")
+		require.EqualError(t, w.readConfigMap(log), "open /dev/null: file does not exist")
 	})
 	t.Run("empty config", func(t *testing.T) {
 		require.Nil(t, afero.WriteFile(appFS, "/dev/null", []byte(""), 0644))
 		require.EqualError(t, err, "invalid config file")
-		require.EqualError(t, w.readConfigMap(), "invalid config file")
+		require.EqualError(t, w.readConfigMap(log), "invalid config file")
 	})
 	var testMatrix = []struct {
 		name        string
@@ -168,7 +174,7 @@ func TestReadConfigMap(t *testing.T) {
 	for _, test := range testMatrix {
 		t.Run(test.name, func(t *testing.T) {
 			require.Nil(t, afero.WriteFile(appFS, "/dev/null", []byte(test.configMap), 0644))
-			require.EqualError(t, w.readConfigMap(), test.expectedErr)
+			require.EqualError(t, w.readConfigMap(log), test.expectedErr)
 		})
 	}
 }

@@ -6,10 +6,16 @@ myAppID:
         mysql.uri: "mysql://root@localhost/mysql"
         snowflake.uri: "http://192.168.0.1/snowflake"
     myNamespace2:
-      releaseKey: "20200309212653-7fec91b6d277b5ab"
-      yml:
+      releaseKey: "20200309212653-7fec91b6d277b5ac"
+      yml: >
         spring:
           datasource:
             dynamic:
               p6spy: false
               primary: master
+    myNamespace3:
+      releaseKey: "20200309212653-7fec91b6d277b5ad"
+      yml: >
+        plain text
+      xml: >
+        plain text

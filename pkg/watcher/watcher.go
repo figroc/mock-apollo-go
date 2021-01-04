@@ -17,9 +17,10 @@ import (
 
 // Namespace holds the namespace config
 type Namespace struct {
-	ReleaseKey string                      `yaml:"releaseKey" json:"releaseKey"`
-	Properties map[string]string           `yaml:"properties" json:"properties"`
-	Yaml       map[interface{}]interface{} `yaml:"yml" json:"yml"`
+	ReleaseKey string            `yaml:"releaseKey" json:"releaseKey"`
+	Properties map[string]string `yaml:"properties" json:"properties"`
+	Yaml       string            `yaml:"yml" json:"yml"`
+	XML        string            `yaml:"xml" json:"xml"`
 }
 
 // ConfigMap holds the app config
@@ -72,7 +73,7 @@ func New(ctx context.Context, cfg Config) (*Watcher, error) {
 				return
 			case event := <-fw.Event:
 				cfg.Log.Get().Debug(fmt.Sprintf("watcher received event: %s", event))
-				if err := w.readConfigMap(); err != nil {
+				if err := w.readConfigMap(cfg.Log); err != nil {
 					cfg.Log.Get().Error(fmt.Sprintf("error reading file: %v", err))
 				} else {
 					updateChan <- struct{}{}
@@ -92,7 +93,7 @@ func New(ctx context.Context, cfg Config) (*Watcher, error) {
 		}
 	}()
 
-	err := w.readConfigMap()
+	err := w.readConfigMap(cfg.Log)
 	return w, err
 }
 
@@ -114,8 +115,8 @@ func (w *Watcher) MockFS(fs afero.Fs) {
 }
 
 // ReloadConfig reloads file config without senging an update event
-func (w *Watcher) ReloadConfig() error {
-	return w.readConfigMap()
+func (w *Watcher) ReloadConfig(log nlogger.Provider) error {
+	return w.readConfigMap(log)
 }
 
 // TriggerEvent triggers the update event
@@ -123,7 +124,7 @@ func (w *Watcher) TriggerEvent() {
 	w.fw.TriggerEvent(watcher.Write, nil)
 }
 
-func (w *Watcher) readConfigMap() error {
+func (w *Watcher) readConfigMap(log nlogger.Provider) error {
 	b, err := afero.ReadFile(w.fs, w.filePath)
 	if err != nil {
 		return err
@@ -155,12 +156,22 @@ func (w *Watcher) readConfigMap() error {
 				if nsKey == "" {
 					return fmt.Errorf("invalid namespace name '%s' in %s/%s", nsKey, appKey, clusterKey)
 				}
-				if ns.Properties == nil && ns.Yaml == nil {
+				if ns.Properties == nil && ns.Yaml == "" && ns.XML == "" {
 					return fmt.Errorf("invalid namespace '%s' in %s/%s", nsKey, appKey, clusterKey)
 				}
 				for configKey := range ns.Properties {
 					if configKey == "" {
 						return fmt.Errorf("invalid config key '%s' in %s/%s/%s", configKey, appKey, clusterKey, nsKey)
+					}
+				}
+				// validate Yaml
+				if ns.Yaml != "" {
+					cfg := make(map[interface{}]interface{})
+					if err := yaml.Unmarshal([]byte(ns.Yaml), &cfg); err != nil {
+						log.Get().Warn(fmt.Sprintf(
+							"failed to parse yaml config for namespace '%s' in %s/%s: %s",
+							nsKey, appKey, clusterKey, err.Error(),
+						))
 					}
 				}
 			}
