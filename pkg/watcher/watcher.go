@@ -168,7 +168,7 @@ func (w *Watcher) readConfigMap(log nlogger.Provider) error {
 					}
 				}
 				// validate Yml
-				if ns.Yaml != "" {
+				if ns.Yml != "" {
 					cfg := make(map[interface{}]interface{})
 					if err := yaml.Unmarshal([]byte(ns.Yml), &cfg); err != nil {
 						log.Get().Warn(fmt.Sprintf(
