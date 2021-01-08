@@ -159,7 +159,7 @@ func (w *Watcher) readConfigMap(log nlogger.Provider) error {
 				if nsKey == "" {
 					return fmt.Errorf("invalid namespace name '%s' in %s/%s", nsKey, appKey, clusterKey)
 				}
-				if ns.Properties == nil && ns.Yml == "" && ns.Yaml == "" && ns.XML == "" {
+				if ns.Properties == nil && ns.Yml == "" && ns.Yaml == "" && ns.XML == "" && ns.JSON == "" {
 					return fmt.Errorf("invalid namespace '%s' in %s/%s", nsKey, appKey, clusterKey)
 				}
 				for configKey := range ns.Properties {
