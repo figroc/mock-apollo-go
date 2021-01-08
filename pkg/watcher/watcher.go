@@ -172,7 +172,7 @@ func (w *Watcher) readConfigMap(log nlogger.Provider) error {
 					cfg := make(map[interface{}]interface{})
 					if err := yaml.Unmarshal([]byte(ns.Yml), &cfg); err != nil {
 						log.Get().Warn(fmt.Sprintf(
-							"failed to parse yaml config for namespace '%s' in %s/%s: %s",
+							"failed to parse yml config for namespace '%s' in %s/%s: %s",
 							nsKey, appKey, clusterKey, err.Error(),
 						))
 					}
