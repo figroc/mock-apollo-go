@@ -13,6 +13,15 @@ myAppID:
             dynamic:
               p6spy: false
               primary: master
+      json: >
+        [
+          {
+            "hello": "hall"
+          },
+          {
+            "hello": "hall"
+          }
+        ]
     myNamespace3:
       releaseKey: "20200309212653-7fec91b6d277b5ad"
       yml: >
@@ -22,11 +31,4 @@ myAppID:
       yaml: >
         plain text
       json: >
-        [
-          {
-            "hello": "hall"
-          },
-          {
-            "world": "hall"
-          }
-        ]
+        plain text
