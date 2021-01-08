@@ -217,12 +217,9 @@ func TestGetNamespaceConfig(t *testing.T) {
 		require.True(t, found)
 
 		y := make(map[interface{}]interface{})
-		t.Log(content)
-		t.Log(stubConfigs[0]["app"]["cluster"]["ns"].Yaml)
 		err = yaml.Unmarshal([]byte(content), y)
 		require.Nil(t, err)
 		b, err := yaml.Marshal(y)
-		t.Log(string(b))
 		require.Nil(t, err)
 
 		require.Equal(
