@@ -19,3 +19,14 @@ myAppID:
         plain text
       xml: >
         plain text
+      yaml: >
+        plain text
+      json: >
+        [
+          {
+            "hello": "hall"
+          },
+          {
+            "world": "hall"
+          }
+        ]

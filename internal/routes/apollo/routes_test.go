@@ -30,16 +30,36 @@ var stubConfigs = []watcher.ConfigMap{
     dynamic:
       p6spy: false
       primary: master
+`, Yml: `spring:
+  datasource:
+    dynamic:
+		  p6spy: false
+      primary: master
 `,
 					XML: "",
+					JSON: `[
+{
+		"abc":"lbs-test",
+},
+{
+		"def":"456",
+}
+]
+`,
 				},
 				"ns2": {
 					ReleaseKey: "abc",
 					Properties: map[string]string{},
-					Yaml: `[raw] 
+					Yml: `[raw]
+key = value
+`,
+					Yaml: `[raw]
 key = value
 `,
 					XML: "plain text",
+					JSON: `[raw]
+key = value
+`,
 				},
 			},
 		},
@@ -186,8 +206,8 @@ func TestGetNamespaceConfig(t *testing.T) {
 		)
 	})
 
-	t.Run("get yml", func(t *testing.T) {
-		cfg, err := a.getNamespaceConfig(".yml", stubConfigs[0]["app"]["cluster"]["ns"])
+	t.Run("get yaml", func(t *testing.T) {
+		cfg, err := a.getNamespaceConfig(".yaml", stubConfigs[0]["app"]["cluster"]["ns"])
 		require.Nil(t, err)
 
 		c, ok := cfg.(map[string]string)
@@ -197,6 +217,8 @@ func TestGetNamespaceConfig(t *testing.T) {
 		require.True(t, found)
 
 		y := make(map[interface{}]interface{})
+		t.Log(content)
+		t.Log(stubConfigs[0]["app"]["cluster"]["ns"].Yaml)
 		err = yaml.Unmarshal([]byte(content), y)
 		require.Nil(t, err)
 		b, err := yaml.Marshal(y)
@@ -227,8 +249,42 @@ func TestGetNamespaceConfig(t *testing.T) {
 		)
 	})
 
-	t.Run("get invalid yml", func(t *testing.T) {
-		cfg, err := a.getNamespaceConfig(".yml", stubConfigs[0]["app"]["cluster"]["ns2"])
+	t.Run("get json", func(t *testing.T) {
+		cfg, err := a.getNamespaceConfig(".json", stubConfigs[0]["app"]["cluster"]["ns"])
+		require.Nil(t, err)
+
+		c, ok := cfg.(map[string]string)
+		require.True(t, ok)
+
+		content, found := c["content"]
+		require.True(t, found)
+
+		require.Equal(
+			t,
+			stubConfigs[0]["app"]["cluster"]["ns"].JSON,
+			content,
+		)
+	})
+
+	t.Run("get invalid json", func(t *testing.T) {
+		cfg, err := a.getNamespaceConfig(".json", stubConfigs[0]["app"]["cluster"]["ns2"])
+		require.Nil(t, err)
+
+		c, ok := cfg.(map[string]string)
+		require.True(t, ok)
+
+		content, found := c["content"]
+		require.True(t, found)
+
+		require.Equal(
+			t,
+			stubConfigs[0]["app"]["cluster"]["ns2"].JSON,
+			content,
+		)
+	})
+
+	t.Run("get invalid yaml", func(t *testing.T) {
+		cfg, err := a.getNamespaceConfig(".yaml", stubConfigs[0]["app"]["cluster"]["ns2"])
 		require.Nil(t, err)
 
 		c, ok := cfg.(map[string]string)

@@ -116,7 +116,11 @@ func (a *Apollo) getNamespace(appID string, cluster string, namespace string) (w
 func (a *Apollo) getNamespaceConfig(extension string, namespace watcher.Namespace) (interface{}, error) {
 	switch extension {
 	case ".yml":
+		return map[string]string{"content": namespace.Yml}, nil
+	case ".yaml":
 		return map[string]string{"content": namespace.Yaml}, nil
+	case ".json":
+		return map[string]string{"content": namespace.JSON}, nil
 	case ".xml":
 		return map[string]string{"content": namespace.XML}, nil
 	case ".properties":
