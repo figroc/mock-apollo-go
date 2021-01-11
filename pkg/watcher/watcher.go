@@ -2,6 +2,7 @@ package watcher
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -19,7 +20,9 @@ import (
 type Namespace struct {
 	ReleaseKey string            `yaml:"releaseKey" json:"releaseKey"`
 	Properties map[string]string `yaml:"properties" json:"properties"`
-	Yaml       string            `yaml:"yml" json:"yml"`
+	Yml        string            `yaml:"yml" json:"yml"`
+	Yaml       string            `yaml:"yaml" json:"yaml"`
+	JSON       string            `yaml:"json" json:"json"`
 	XML        string            `yaml:"xml" json:"xml"`
 }
 
@@ -156,7 +159,7 @@ func (w *Watcher) readConfigMap(log nlogger.Provider) error {
 				if nsKey == "" {
 					return fmt.Errorf("invalid namespace name '%s' in %s/%s", nsKey, appKey, clusterKey)
 				}
-				if ns.Properties == nil && ns.Yaml == "" && ns.XML == "" {
+				if ns.Properties == nil && ns.Yml == "" && ns.Yaml == "" && ns.XML == "" && ns.JSON == "" {
 					return fmt.Errorf("invalid namespace '%s' in %s/%s", nsKey, appKey, clusterKey)
 				}
 				for configKey := range ns.Properties {
@@ -164,12 +167,34 @@ func (w *Watcher) readConfigMap(log nlogger.Provider) error {
 						return fmt.Errorf("invalid config key '%s' in %s/%s/%s", configKey, appKey, clusterKey, nsKey)
 					}
 				}
+				// validate Yml
+				if ns.Yml != "" {
+					cfg := make(map[interface{}]interface{})
+					if err := yaml.Unmarshal([]byte(ns.Yml), &cfg); err != nil {
+						log.Get().Warn(fmt.Sprintf(
+							"failed to parse yml config for namespace '%s' in %s/%s: %s",
+							nsKey, appKey, clusterKey, err.Error(),
+						))
+					}
+				}
+
 				// validate Yaml
 				if ns.Yaml != "" {
 					cfg := make(map[interface{}]interface{})
 					if err := yaml.Unmarshal([]byte(ns.Yaml), &cfg); err != nil {
 						log.Get().Warn(fmt.Sprintf(
 							"failed to parse yaml config for namespace '%s' in %s/%s: %s",
+							nsKey, appKey, clusterKey, err.Error(),
+						))
+					}
+				}
+
+				// validate JSON
+				if ns.JSON != "" {
+					var cfg interface{}
+					if err := json.Unmarshal([]byte(ns.JSON), &cfg); err != nil {
+						log.Get().Warn(fmt.Sprintf(
+							"failed to parse json config for namespace '%s' in %s/%s: %s",
 							nsKey, appKey, clusterKey, err.Error(),
 						))
 					}
