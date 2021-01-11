@@ -191,7 +191,7 @@ func (w *Watcher) readConfigMap(log nlogger.Provider) error {
 
 				// validate JSON
 				if ns.JSON != "" {
-					var cfg []map[string]interface{}
+					cfg := make(map[interface{}]interface{})
 					if err := json.Unmarshal([]byte(ns.JSON), &cfg); err != nil {
 						log.Get().Warn(fmt.Sprintf(
 							"failed to parse json config for namespace '%s' in %s/%s: %s",

@@ -43,7 +43,7 @@ var stubConfigs = []ConfigMap{
 					Yml:  "invalid yml; key = value",
 					Yaml: "invalid yml; key = value",
 					XML:  "",
-					JSON: "",
+					JSON: "invalid json; key = value",
 				},
 			},
 		},
