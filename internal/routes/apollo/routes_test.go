@@ -117,6 +117,38 @@ func TestParseNamespace(t *testing.T) {
 		)
 	})
 
+	t.Run("get ns2.yml", func(t *testing.T) {
+		ns, ext := a.parseNamespace("ns2.yaml")
+		require.Equal(
+			t,
+			"ns2",
+			ns,
+			ns,
+		)
+		require.Equal(
+			t,
+			".yaml",
+			ext,
+			ext,
+		)
+	})
+
+	t.Run("get ns2.yml", func(t *testing.T) {
+		ns, ext := a.parseNamespace("ns2.json")
+		require.Equal(
+			t,
+			"ns2",
+			ns,
+			ns,
+		)
+		require.Equal(
+			t,
+			".json",
+			ext,
+			ext,
+		)
+	})
+
 	t.Run("get ns", func(t *testing.T) {
 		ns, ext := a.parseNamespace("ns")
 		require.Equal(
