@@ -117,7 +117,7 @@ func TestParseNamespace(t *testing.T) {
 		)
 	})
 
-	t.Run("get ns2.yml", func(t *testing.T) {
+	t.Run("get ns2.yaml", func(t *testing.T) {
 		ns, ext := a.parseNamespace("ns2.yaml")
 		require.Equal(
 			t,
@@ -133,7 +133,7 @@ func TestParseNamespace(t *testing.T) {
 		)
 	})
 
-	t.Run("get ns2.yml", func(t *testing.T) {
+	t.Run("get ns2.json", func(t *testing.T) {
 		ns, ext := a.parseNamespace("ns2.json")
 		require.Equal(
 			t,
