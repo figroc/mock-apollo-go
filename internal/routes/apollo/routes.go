@@ -90,7 +90,7 @@ func (a *Apollo) parseNamespace(namespace string) (string, string) {
 	ext := filepath.Ext(namespace)
 
 	switch ext {
-	case ".properties", ".yml", ".xml":
+	case ".properties", ".yml", ".yaml", ".xml", ".json":
 		s := strings.TrimSuffix(namespace, ext)
 		return s, ext
 	default:
