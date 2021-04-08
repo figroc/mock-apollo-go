@@ -132,6 +132,11 @@ func (a *Apollo) getNamespaceConfig(extension string, namespace watcher.Namespac
 
 func (a *Apollo) queryService(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	log := a.cfg.Log.Get()
+	host, err := os.Hostname()
+	if err != nil {
+		log.Warn(err.Error())
+		host = "localhost"
+	}
 	type svc struct {
 		AppName     string `json:"appName"`
 		InstanceID  string `json:"instanceId"`
@@ -141,8 +146,8 @@ func (a *Apollo) queryService(w http.ResponseWriter, r *http.Request, ps httprou
 	json, err := json.Marshal(rsp{
 		&svc{
 			AppName:     "APOLLO-CONFIGSERVICE",
-			InstanceID:  fmt.Sprintf("localhost:apollo-configservice:%d", a.cfg.Port),
-			HomepageURL: fmt.Sprintf("http://localhost:%d/", a.cfg.Port),
+			InstanceID:  fmt.Sprintf("%s:apollo-configservice:%d", host, a.cfg.Port),
+			HomepageURL: fmt.Sprintf("http://%s/", r.Host),
 		},
 	})
 	if err != nil {

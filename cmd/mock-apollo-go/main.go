@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -32,8 +33,23 @@ func init() {
 	flag.IntVar(&configPort, "config-port", 8070, "config HTTP server port")
 	flag.DurationVar(&pollTimeout, "poll-timeout", time.Minute, "long poll timeout")
 	flag.Parse()
+	writeEnvConf()
 	validateInput()
 	logger = nlogger.NewProvider(newLogger(logrus.InfoLevel))
+}
+
+func writeEnvConf() {
+	if conf := os.Getenv("MOCK_APOLLO_CONF"); conf != "" {
+		f, err := ioutil.TempFile("", "mock_*.yaml")
+		if err != nil {
+			log.Fatal(err)
+		}
+		if _, err := f.WriteString(conf); err != nil {
+			log.Fatal(err)
+		}
+		filePaths.Insert(f.Name())
+		f.Close()
+	}
 }
 
 func validateInput() {

@@ -10,3 +10,8 @@ func (i *FlagArray) Set(value string) error {
 	*i = append(*i, value)
 	return nil
 }
+
+func (i *FlagArray) Insert(value string) error {
+	*i = append([]string{value}, *i...)
+	return nil
+}

@@ -1,11 +1,8 @@
-FROM golang:1.15 as build
-
+FROM golang:1.15-alpine as build
 WORKDIR /app
-
 COPY . .
+RUN go build ./cmd/mock-apollo-go
 
-RUN cd cmd/mock-apollo-go && go build -o /go/bin/app
-
-FROM gcr.io/distroless/base
-COPY --from=build /go/bin/app /
-CMD ["/app"]
+FROM golang:1.15-alpine
+COPY --from=build /app/mock-apollo-go /
+ENTRYPOINT ["/mock-apollo-go"]

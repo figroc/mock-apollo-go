@@ -16,7 +16,9 @@ This project currently supports 3 APIs for fetching config:
 
 ## Docker
 Docker image can be used to quickly get started:\
-`docker pull quay.io/lalamove/mock-apollo-go`
+`docker pull figroc/mock-apollo`
+
+You can set environment variable `MOCK_APOLLO_CONF` as an extra initial configuration.
 
 ## Building it locally
 Alternatively, you can also build it locally.
