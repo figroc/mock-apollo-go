@@ -18,7 +18,8 @@ This project currently supports 3 APIs for fetching config:
 Docker image can be used to quickly get started:\
 `docker pull figroc/mock-apollo`
 
-You can set environment variable `MOCK_APOLLO_CONF` as an extra initial configuration.
+You can set environment variable `MOCK_APOLLO_CONF_VALUE` as an extra initial configuration.
+It defaults to `yaml`, you can change to other types by `MOCK_APOLLO_CONF_TYPE` variable.
 
 ## Building it locally
 Alternatively, you can also build it locally.

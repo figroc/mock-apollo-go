@@ -2,7 +2,7 @@ package longpoll
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -21,7 +21,7 @@ func TestPoll(t *testing.T) {
 		poll.Wait()
 
 		res := recorder.Result()
-		b, err := ioutil.ReadAll(res.Body)
+		b, err := io.ReadAll(res.Body)
 		require.Nil(t, err)
 		require.Equal(t, 200, res.StatusCode)
 		require.JSONEq(t, `[{"namespaceName": "test","notificationId": 1}]`, string(b))
@@ -39,7 +39,7 @@ func TestPoll(t *testing.T) {
 		poll.Wait()
 
 		res := recorder.Result()
-		b, err := ioutil.ReadAll(res.Body)
+		b, err := io.ReadAll(res.Body)
 		require.Nil(t, err)
 		require.Equal(t, 304, res.StatusCode)
 		require.Equal(t, "", string(b))
@@ -56,7 +56,7 @@ func TestPoll(t *testing.T) {
 		poll.Wait()
 
 		res := recorder.Result()
-		b, err := ioutil.ReadAll(res.Body)
+		b, err := io.ReadAll(res.Body)
 		require.Nil(t, err)
 		require.Equal(t, 304, res.StatusCode)
 		require.Equal(t, "", string(b))

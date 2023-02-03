@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/lalamove/nui/nlogger"
-
+	"github.com/paradime-io/gonja"
 	"github.com/radovskyb/watcher"
 	"github.com/spf13/afero"
 	"gopkg.in/yaml.v2"
@@ -132,8 +132,16 @@ func (w *Watcher) readConfigMap(log nlogger.Provider) error {
 	if err != nil {
 		return err
 	}
+	t, err := gonja.FromBytes(b)
+	if err != nil {
+		return err
+	}
+	s, err := t.ExecuteBytes(nil)
+	if err != nil {
+		return err
+	}
 	cm := ConfigMap{}
-	err = yaml.Unmarshal(b, &cm)
+	err = yaml.Unmarshal(s, &cm)
 	if err != nil {
 		return err
 	}

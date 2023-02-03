@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/figroc/mock-apollo-go/pkg/longpoll"
+	"github.com/figroc/mock-apollo-go/pkg/watcher"
 	"github.com/julienschmidt/httprouter"
-	"github.com/lalamove/mock-apollo-go/pkg/longpoll"
-	"github.com/lalamove/mock-apollo-go/pkg/watcher"
 	"github.com/lalamove/nui/nlogger"
 )
 

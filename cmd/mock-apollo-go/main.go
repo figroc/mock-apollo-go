@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -12,9 +11,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/figroc/mock-apollo-go/internal/routes/apollo"
+	"github.com/figroc/mock-apollo-go/pkg/flagarray"
 	"github.com/julienschmidt/httprouter"
-	"github.com/lalamove/mock-apollo-go/internal/routes/apollo"
-	"github.com/lalamove/mock-apollo-go/pkg/flagarray"
 	"github.com/lalamove/nui/nlogger"
 	"github.com/sirupsen/logrus"
 )
@@ -39,16 +38,24 @@ func init() {
 }
 
 func writeEnvConf() {
-	if conf := os.Getenv("MOCK_APOLLO_CONF"); conf != "" {
-		f, err := ioutil.TempFile("", "mock_*.yaml")
+	conf := os.Getenv("MOCK_APOLLO_CONF_VALUE")
+	if conf == "" {
+		conf = os.Getenv("MOCK_APOLLO_CONF")
+	}
+	if conf != "" {
+		ext := os.Getenv("MOCK_APOLLO_CONF_TYPE")
+		if ext == "" {
+			ext = "yaml"
+		}
+		f, err := os.CreateTemp("", "mock_*."+ext)
 		if err != nil {
 			log.Fatal(err)
 		}
 		if _, err := f.WriteString(conf); err != nil {
 			log.Fatal(err)
 		}
-		filePaths.Insert(f.Name())
 		f.Close()
+		filePaths.Insert(f.Name())
 	}
 }
 

@@ -2,15 +2,15 @@ package apollo
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/figroc/mock-apollo-go/pkg/watcher"
 	"github.com/julienschmidt/httprouter"
-	"github.com/lalamove/mock-apollo-go/pkg/watcher"
 	"github.com/lalamove/nui/nlogger"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
@@ -356,17 +356,22 @@ func TestQueryService(t *testing.T) {
 	t.Run("status 200", func(t *testing.T) {
 		// call the handler
 		req := httptest.NewRequest("GET", "/services/config?appId=app", nil)
+		req.Header.Set("host", "example.com")
 		w := httptest.NewRecorder()
 		ps := httprouter.Params{}
 		a.queryService(w, req, ps)
 
 		rsp := w.Result()
 		require.Equal(t, 200, rsp.StatusCode)
-		b, err := ioutil.ReadAll(rsp.Body)
+		b, err := io.ReadAll(rsp.Body)
 		require.Nil(t, err)
+		h, err := os.Hostname()
+		if err != nil {
+			h = "localhost"
+		}
 		require.JSONEq(
 			t,
-			`[{"appName":"APOLLO-CONFIGSERVICE","instanceId":"localhost:apollo-configservice:8070","homepageUrl":"http://localhost:8070/"}]`,
+			`[{"appName":"APOLLO-CONFIGSERVICE","instanceId":"`+h+`:apollo-configservice:8070","homepageUrl":"http://example.com/"}]`,
 			string(b),
 			string(b),
 		)
@@ -404,7 +409,7 @@ func TestQueryConfig(t *testing.T) {
 		a.queryConfig(w, req, ps)
 		rsp := w.Result()
 		require.Equal(t, 200, rsp.StatusCode)
-		b, err := ioutil.ReadAll(rsp.Body)
+		b, err := io.ReadAll(rsp.Body)
 		require.Nil(t, err)
 		require.JSONEq(
 			t,
@@ -426,7 +431,7 @@ func TestQueryConfig(t *testing.T) {
 		a.queryConfig(w, req, ps)
 		rsp := w.Result()
 		require.Equal(t, 200, rsp.StatusCode)
-		b, err := ioutil.ReadAll(rsp.Body)
+		b, err := io.ReadAll(rsp.Body)
 		require.Nil(t, err)
 		require.JSONEq(
 			t,
@@ -448,7 +453,7 @@ func TestQueryConfig(t *testing.T) {
 		a.queryConfig(w, req, ps)
 		rsp := w.Result()
 		require.Equal(t, 404, rsp.StatusCode)
-		b, err := ioutil.ReadAll(rsp.Body)
+		b, err := io.ReadAll(rsp.Body)
 		require.Nil(t, err)
 		require.Equal(t, "", string(b))
 	})
@@ -485,7 +490,7 @@ func TestQueryConfigJSON(t *testing.T) {
 		a.queryConfigJSON(w, req, ps)
 		rsp := w.Result()
 		require.Equal(t, 200, rsp.StatusCode)
-		b, err := ioutil.ReadAll(rsp.Body)
+		b, err := io.ReadAll(rsp.Body)
 		require.Nil(t, err)
 		require.JSONEq(
 			t,
@@ -506,7 +511,7 @@ func TestQueryConfigJSON(t *testing.T) {
 		a.queryConfigJSON(w, req, ps)
 		rsp := w.Result()
 		require.Equal(t, 404, rsp.StatusCode)
-		b, err := ioutil.ReadAll(rsp.Body)
+		b, err := io.ReadAll(rsp.Body)
 		require.Nil(t, err)
 		require.Equal(t, "", string(b))
 	})
@@ -551,7 +556,7 @@ func TestNotificationsLongPolling(t *testing.T) {
 		a.longPolling(w, req, ps)
 		rsp := w.Result()
 		require.Equal(t, 200, rsp.StatusCode)
-		b, err := ioutil.ReadAll(rsp.Body)
+		b, err := io.ReadAll(rsp.Body)
 		require.Nil(t, err)
 		require.JSONEq(
 			t,
@@ -589,7 +594,7 @@ func TestNotificationsLongPolling(t *testing.T) {
 		a.longPolling(w, req, ps)
 		rsp := w.Result()
 		require.Equal(t, 304, rsp.StatusCode)
-		b, err := ioutil.ReadAll(rsp.Body)
+		b, err := io.ReadAll(rsp.Body)
 		require.Nil(t, err)
 		require.Equal(t, "", string(b))
 	})
@@ -626,7 +631,7 @@ func TestNotificationsLongPolling(t *testing.T) {
 		a.longPolling(w, req, ps)
 		rsp := w.Result()
 		require.Equal(t, 304, rsp.StatusCode)
-		b, err := ioutil.ReadAll(rsp.Body)
+		b, err := io.ReadAll(rsp.Body)
 		require.Nil(t, err)
 		require.Equal(t, "", string(b))
 	})
